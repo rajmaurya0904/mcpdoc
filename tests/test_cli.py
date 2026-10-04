@@ -64,3 +64,32 @@ def test_cli_fix_adds_todo_comments(tmp_path: Path) -> None:
     # Check that the file now contains the TODO comment
     content = config_file.read_text(encoding="utf-8")
     assert "# TODO: install missing_binary" in content
+
+
+def test_cli_version_output_matches_pyproject() -> None:
+    # Read the version from pyproject.toml
+    PROJECT_ROOT = Path(__file__).parent.parent
+    pyproject_path = PROJECT_ROOT / "pyproject.toml"
+    content = pyproject_path.read_text()
+    version = None
+    for line in content.splitlines():
+        if line.strip().startswith("version ="):
+            version = line.split("=")[1].strip().strip('"')
+            break
+    assert version is not None, "Could not find version in pyproject.toml"
+
+    # Run the CLI with --version and capture output
+    import io
+    import sys
+    old_stdout = sys.stdout
+    sys.stdout = io.StringIO()
+    try:
+        cli.main(["--version"])
+    except SystemExit as e:
+        assert e.code == 0
+    finally:
+        output = sys.stdout.getvalue()
+        sys.stdout = old_stdout
+    # The output should be exactly: f"mcp-linter {version}\n"
+    expected = f"mcp-linter {version}\n"
+    assert output == expected

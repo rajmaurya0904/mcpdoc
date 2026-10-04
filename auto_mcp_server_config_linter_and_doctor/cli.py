@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 
+from . import __version__
 from .mcp_linter import add_fix_comments, get_missing_binaries, load_config
 
 
@@ -33,6 +34,11 @@ def build_parser() -> argparse.ArgumentParser:
         "--json",
         action="store_true",
         help="Output results in JSON format.",
+    )
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"%(prog)s {__version__}",
     )
     return parser
 
