@@ -7,6 +7,41 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 
+def get_missing_binaries(config: MCPConfig) -> set[str]:
+    """Return the set of binaries that are referenced by servers but not in the binaries list."""
+    binary_set = set(config.binaries)
+    missing: set[str] = set()
+    for _server_name, server_config in config.servers.items():
+        command = server_config.get("command")
+        if command and command not in binary_set:
+            missing.add(command)
+    return missing
+
+
+def add_fix_comments(path: str, missing_binaries: set[str]) -> None:
+    """Add a comment line for each missing binary to the config file.
+
+    This function appends a line of the form '# TODO: install <binary>' for each
+    missing binary to the end of the file.
+
+    Parameters
+    ----------
+    path: str
+        Path to the configuration file.
+    missing_binaries: set[str]
+        A set of missing binary names.
+    """
+    with open(path, encoding='utf-8') as f:
+        content = f.read()
+    # Ensure we end with a newline before appending.
+    if not content.endswith('\n'):
+        content += '\n'
+    for binary in missing_binaries:
+        content += f'# TODO: install {binary}\n'
+    with open(path, 'w', encoding='utf-8') as f:
+        f.write(content)
+
+
 @dataclass
 class MCPConfig:
     """Represents an MCP configuration."""

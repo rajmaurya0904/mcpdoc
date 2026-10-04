@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import argparse
 
+from .mcp_linter import add_fix_comments, get_missing_binaries, load_config
+
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the argument parser for the CLI."""
@@ -37,5 +39,11 @@ def main(argv: list[str] | None = None) -> int:
     except SystemExit as e:
         # argparse exits on --help; return the exit code instead of raising
         return e.code
+    if args.fix:
+        config = load_config(args.config)
+        missing = get_missing_binaries(config)
+        if missing:
+            add_fix_comments(args.config, missing)
+        # If no missing binaries, nothing to do.
     print(f"Linting {args.config}")
     return 0
