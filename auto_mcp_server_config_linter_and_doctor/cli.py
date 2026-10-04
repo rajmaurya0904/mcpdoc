@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 
 from .mcp_linter import add_fix_comments, get_missing_binaries, load_config
 
@@ -28,6 +29,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Attempt to automatically fix detected problems.",
     )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Output results in JSON format.",
+    )
     return parser
 
 
@@ -39,11 +45,24 @@ def main(argv: list[str] | None = None) -> int:
     except SystemExit as e:
         # argparse exits on --help; return the exit code instead of raising
         return e.code
-    if args.fix:
-        config = load_config(args.config)
-        missing = get_missing_binaries(config)
+    config = load_config(args.config)
+    missing = get_missing_binaries(config)
+
+    if args.fix and not args.check:
         if missing:
             add_fix_comments(args.config, missing)
-        # If no missing binaries, nothing to do.
-    print(f"Linting {args.config}")
+
+    fix_applied = args.fix and not args.check and bool(missing)
+    lint_passed = not missing
+
+    if args.json:
+        result = {
+            "config_file": args.config,
+            "missing_binaries": sorted(list(missing)),
+            "fix_applied": fix_applied,
+            "lint_passed": lint_passed,
+        }
+        print(json.dumps(result))
+    else:
+        print(f"Linting {args.config}")
     return 0
