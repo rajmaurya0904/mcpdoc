@@ -182,3 +182,28 @@ def test_run_checks_with_multiple_issues(tmp_path) -> None:
 
     # unreachable_endpoints: always empty
     assert result["unreachable_endpoints"] == []
+
+
+def test_add_fix_comments_adds_placeholder_lines(tmp_path) -> None:
+    """Test that add_fix_comments adds the expected placeholder comments."""
+    from auto_mcp_server_config_linter_and_doctor.mcp_linter import add_fix_comments
+
+    # Create a config file with some initial content
+    config_file = tmp_path / ".mcp.json"
+    initial_content = '{"servers": {"test": {"command": "python"}}}'
+    config_file.write_text(initial_content, encoding="utf-8")
+
+    missing_binaries = {"python", "ruby"}
+    add_fix_comments(str(config_file), missing_binaries)
+
+    # Read the file and check for the expected lines
+    content = config_file.read_text(encoding="utf-8")
+    # Ensure original content is preserved
+    assert initial_content in content
+    # Check that the placeholder lines are present (order may vary)
+    assert '# TODO: install python' in content
+    assert '# TODO: install ruby' in content
+    # Ensure we didn't add extra blank lines incorrectly
+    # The function ensures a newline before appending, so we expect each comment on its own line.
+    # We can also check that the file ends with a newline (since each comment adds one).
+    assert content.endswith('\n')
