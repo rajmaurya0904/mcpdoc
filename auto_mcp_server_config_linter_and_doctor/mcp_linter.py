@@ -54,3 +54,68 @@ def lint_config(path: str = ".mcp.json") -> list[str]:
     """
     # In a real implementation, this would parse the file and return warnings.
     return []
+
+
+def check_duplicate_servers(config: MCPConfig) -> list[str]:
+    """Check for duplicate server names.
+
+    Returns a list of error messages, empty if none.
+    """
+    # Since servers is a dict, duplicate keys are impossible.
+    # However, we could check if the config had a list of servers with a 'name' field.
+    # For now, we assume the dict structure and return empty.
+    return []
+
+
+def check_missing_binaries(config: MCPConfig) -> list[str]:
+    """Check that each server's command is listed in the binaries list.
+
+    Returns a list of error messages, empty if none.
+    """
+    errors: list[str] = []
+    binary_set = set(config.binaries)
+    for server_name, server_config in config.servers.items():
+        command = server_config.get("command")
+        if command and command not in binary_set:
+            errors.append(
+                f"Server '{server_name}' specifies binary '{command}' "
+                f"which is not in the binaries list."
+            )
+    return errors
+
+
+def check_bad_env_vars(config: MCPConfig) -> list[str]:
+    """Check that environment variables are non-empty strings.
+
+    Returns a list of error messages, empty if none.
+    """
+    errors: list[str] = []
+    for key, value in config.env_vars.items():
+        if not isinstance(value, str) or not value.strip():
+            errors.append(
+                f"Environment variable '{key}' must be a non-empty string."
+            )
+    return errors
+
+
+def check_unreachable_endpoints(config: MCPConfig) -> list[str]:
+    """Check for unreachable endpoints.
+
+    This is a placeholder; endpoint information is not available in the current config.
+    Returns an empty list.
+    """
+    return []
+
+
+def run_checks(path: str = ".mcp.json") -> dict[str, list[str]]:
+    """Load config and run all validation checks, returning a dict of results.
+
+    Keys are check names, values are lists of error messages.
+    """
+    config = load_config(path)
+    return {
+        "duplicate_servers": check_duplicate_servers(config),
+        "missing_binaries": check_missing_binaries(config),
+        "bad_env_vars": check_bad_env_vars(config),
+        "unreachable_endpoints": check_unreachable_endpoints(config),
+    }
