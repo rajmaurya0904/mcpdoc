@@ -140,3 +140,45 @@ def test_run_checks_with_errors(tmp_path) -> None:
     assert len(result["bad_env_vars"]) == 1
     assert "Environment variable 'BAD'" in result["bad_env_vars"][0]
     assert result["unreachable_endpoints"] == []
+
+
+def test_run_checks_with_multiple_issues(tmp_path) -> None:
+    """End-to-end test: config with multiple issues across all check categories."""
+    config_data = {
+        "servers": {
+            "ok": {"command": "node"},
+            "missing_bin": {"command": "python"},
+            "also_missing": {"command": "ruby"},
+        },
+        "binaries": ["node"],
+        "env_vars": {
+            "GOOD": "value",
+            "EMPTY": "",
+            "WHITESPACE": "   \t\n",
+            "NOT_STRING": 42,
+        },
+    }
+    config_file = tmp_path / ".mcp.json"
+    config_file.write_text(json.dumps(config_data), encoding="utf-8")
+
+    result = run_checks(str(config_file))
+
+    # duplicate_servers: always empty with current dict-based servers
+    assert result["duplicate_servers"] == []
+
+    # missing_binaries: two errors
+    missing = result["missing_binaries"]
+    assert len(missing) == 2
+    assert any("Server 'missing_bin' specifies binary 'python'" in m for m in missing)
+    assert any("Server 'also_missing' specifies binary 'ruby'" in m for m in missing)
+
+    # bad_env_vars: three errors (EMPTY, WHITESPACE, NOT_STRING)
+    bad = result["bad_env_vars"]
+    assert len(bad) == 3
+    bad_messages = " ".join(bad)
+    assert "Environment variable 'EMPTY'" in bad_messages
+    assert "Environment variable 'WHITESPACE'" in bad_messages
+    assert "Environment variable 'NOT_STRING'" in bad_messages
+
+    # unreachable_endpoints: always empty
+    assert result["unreachable_endpoints"] == []
