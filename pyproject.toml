@@ -6,6 +6,9 @@ requires-python = ">=3.11"
 license = { text = "MIT" }
 dependencies = []
 
+[project.scripts]
+mcp-lint = "auto_mcp_server_config_linter_and_doctor.cli:main"
+
 [project.optional-dependencies]
 dev = [
     "pytest>=8.0",
