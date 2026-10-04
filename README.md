@@ -29,7 +29,11 @@ TODO.
 
 ## FAQ
 
-TODO.
+**What if a binary is optional?**
+If a binary is optional, you can mark it as such in the configuration by setting `"optional": true` for that server. The linter will skip the binary existence check for optional servers.
+
+**How to ignore a server?**
+To ignore a server during validation, add `"ignore": true` to the server's configuration. The linter will skip all checks for that server.
 
 ## License
 
