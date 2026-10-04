@@ -5,7 +5,7 @@ import pathlib
 
 import pytest
 
-from src.mcp_linter import MCPConfig, load_config
+from auto_mcp_server_config_linter_and_doctor.mcp_linter import MCPConfig, load_config
 
 
 def test_load_config_returns_correct_data(tmp_path: pathlib.Path) -> None:

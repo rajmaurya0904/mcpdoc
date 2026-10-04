@@ -1,6 +1,6 @@
 """Tests for the MCPConfig data model."""
 
-from src.mcp_linter import MCPConfig
+from auto_mcp_server_config_linter_and_doctor.mcp_linter import MCPConfig
 
 
 def test_mcp_config_defaults() -> None:

@@ -2,7 +2,7 @@
 
 import sys
 
-from src import cli
+from auto_mcp_server_config_linter_and_doctor import cli
 
 
 def test_cli_import() -> None:
