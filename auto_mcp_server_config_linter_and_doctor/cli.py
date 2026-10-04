@@ -21,6 +21,11 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Run in check mode (no changes will be made).",
     )
+    parser.add_argument(
+        "--fix",
+        action="store_true",
+        help="Attempt to automatically fix detected problems.",
+    )
     return parser
 
 
