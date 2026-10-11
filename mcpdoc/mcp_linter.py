@@ -42,6 +42,29 @@ def add_fix_comments(path: str, missing_binaries: set[str]) -> None:
         f.write(content)
 
 
+class _JSONObject(dict):
+    """A dict parsed from a JSON object that remembers which keys were repeated."""
+
+    duplicate_keys: tuple[str, ...] = ()
+
+
+def _object_hook(pairs: list[tuple[str, object]]) -> _JSONObject:
+    """Build a dict from JSON pairs, recording keys that appear more than once.
+
+    ``json`` silently keeps the last value for a repeated key, so without this
+    hook a duplicated server name would vanish without a trace.
+    """
+    obj = _JSONObject(pairs)
+    seen: set[str] = set()
+    duplicates: list[str] = []
+    for key, _value in pairs:
+        if key in seen and key not in duplicates:
+            duplicates.append(key)
+        seen.add(key)
+    obj.duplicate_keys = tuple(duplicates)
+    return obj
+
+
 @dataclass
 class MCPConfig:
     """Represents an MCP configuration."""
@@ -49,6 +72,7 @@ class MCPConfig:
     servers: dict[str, dict[str, object]] = field(default_factory=dict)
     env_vars: dict[str, str] = field(default_factory=dict)
     binaries: list[str] = field(default_factory=list)
+    duplicate_servers: list[str] = field(default_factory=list)
 
 
 def load_config(path: str = ".mcp.json") -> MCPConfig:
@@ -73,12 +97,18 @@ def load_config(path: str = ".mcp.json") -> MCPConfig:
     if not p.is_file():
         raise FileNotFoundError(f"Configuration file not found: {path}")
     with p.open("r", encoding="utf-8") as f:
-        data = json.load(f)
+        data = json.load(f, object_pairs_hook=_object_hook)
     # Extract known keys, defaulting to empty structures if missing.
     servers = data.get("servers", {})
     env_vars = data.get("env_vars", {})
     binaries = data.get("binaries", [])
-    return MCPConfig(servers=servers, env_vars=env_vars, binaries=binaries)
+    duplicate_servers = list(getattr(servers, "duplicate_keys", ()))
+    return MCPConfig(
+        servers=servers,
+        env_vars=env_vars,
+        binaries=binaries,
+        duplicate_servers=duplicate_servers,
+    )
 
 
 def lint_config(path: str = ".mcp.json") -> list[str]:
@@ -92,14 +122,14 @@ def lint_config(path: str = ".mcp.json") -> list[str]:
 
 
 def check_duplicate_servers(config: MCPConfig) -> list[str]:
-    """Check for duplicate server names.
+    """Check for server names that are defined more than once in the config.
 
     Returns a list of error messages, empty if none.
     """
-    # Since servers is a dict, duplicate keys are impossible.
-    # However, we could check if the config had a list of servers with a 'name' field.
-    # For now, we assume the dict structure and return empty.
-    return []
+    return [
+        f"Server '{name}' is defined more than once."
+        for name in config.duplicate_servers
+    ]
 
 
 def check_missing_binaries(config: MCPConfig) -> list[str]:
