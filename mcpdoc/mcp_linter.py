@@ -8,6 +8,8 @@ import re
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import requests
+
 _ENV_NAME_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 
@@ -191,6 +193,26 @@ def find_invalid_env_vars(config: MCPConfig) -> list[str]:
         ):
             invalid.append(key)
     return invalid
+
+
+def find_unreachable_endpoints(config: MCPConfig, timeout: float = 3.0) -> list[str]:
+    """Return the server URLs that do not answer a HEAD request within ``timeout``.
+
+    Any HTTP response counts as reachable, even an error status. Servers without a
+    ``url`` entry are skipped.
+    """
+    unreachable: list[str] = []
+    for server_config in config.servers.values():
+        if not isinstance(server_config, dict):
+            continue
+        url = server_config.get("url")
+        if not isinstance(url, str) or not url:
+            continue
+        try:
+            requests.head(url, timeout=timeout, allow_redirects=True)
+        except requests.RequestException:
+            unreachable.append(url)
+    return unreachable
 
 
 def check_unreachable_endpoints(config: MCPConfig) -> list[str]:
