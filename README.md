@@ -21,7 +21,50 @@ Requires Python >=3.11
 
 ## Usage
 
-TODO: fill in as the build loop lands the core feature.
+Lint a config file (defaults to `.mcp.json` in the current directory):
+
+```bash
+mcp-lint --config .mcp.json
+```
+
+Options:
+
+- `--config PATH`: the config file to check (default `.mcp.json`).
+- `--check`: report only, do not change the file.
+- `--fix`: rename duplicate server names (`filesystem` becomes `filesystem-2`) and rewrite the file. If binaries are missing, it also appends `# TODO: install <binary>` lines, which makes the file invalid JSON.
+- `--json`: print one JSON object instead of text.
+- `--version`: print the version and exit.
+
+Text output prints errors in red and warnings in yellow. For a config with a duplicate server, a missing binary and an empty env var:
+
+```text
+Linting .mcp.json
+error: Server 'filesystem' is defined more than once.
+error: Server 'git' specifies binary 'git-mcp' which is not in the binaries list.
+error: Environment variable 'API_KEY' must be a non-empty string.
+```
+
+Fix only the duplicate server names:
+
+```bash
+mcp-lint --config .mcp.json --fix
+```
+
+```text
+fixed: renamed duplicate server 'filesystem' to 'filesystem-2'
+```
+
+Machine-readable output for scripts:
+
+```bash
+mcp-lint --config .mcp.json --json
+```
+
+```json
+{"config_file": ".mcp.json", "missing_binaries": ["git-mcp"], "fix_applied": false, "lint_passed": false}
+```
+
+A missing or malformed config file is reported on stderr with exit code 2.
 
 ## Example
 
