@@ -262,17 +262,37 @@ def find_missing_binary_paths(config: MCPConfig) -> list[str]:
     return [path for path in config.binaries if not os.path.isfile(path)]
 
 
+def _is_bad_env_value(value: object) -> bool:
+    """Return True when an env value is not a usable non-empty string."""
+    return not isinstance(value, str) or not value.strip()
+
+
 def check_bad_env_vars(config: MCPConfig) -> list[str]:
     """Check that environment variables are non-empty strings.
+
+    Both the top-level ``env_vars`` table and each server's own ``env`` block are
+    checked, since real MCP configs put secrets in the per-server block.
 
     Returns a list of error messages, empty if none.
     """
     errors: list[str] = []
     for key, value in config.env_vars.items():
-        if not isinstance(value, str) or not value.strip():
+        if _is_bad_env_value(value):
             errors.append(
                 f"Environment variable '{key}' must be a non-empty string."
             )
+    for server_name, server_config in config.servers.items():
+        if not isinstance(server_config, dict):
+            continue
+        env = server_config.get("env")
+        if not isinstance(env, dict):
+            continue
+        for key, value in env.items():
+            if _is_bad_env_value(value):
+                errors.append(
+                    f"Server '{server_name}' environment variable '{key}' "
+                    f"must be a non-empty string."
+                )
     return errors
 
 

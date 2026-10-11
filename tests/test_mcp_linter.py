@@ -375,3 +375,18 @@ def test_binaries_allowlist_still_wins_when_present(monkeypatch) -> None:
     assert len(errors) == 1
     assert "not in the binaries list" in errors[0]
     assert get_missing_binaries(config) == {"node"}
+
+
+def test_check_bad_env_vars_reports_empty_per_server_env() -> None:
+    config = MCPConfig(
+        servers={
+            "github": {"command": "node", "env": {"TOKEN": "", "HOME": "/home/raj"}},
+            "plain": {"command": "node"},
+        }
+    )
+
+    errors = check_bad_env_vars(config)
+
+    assert errors == [
+        "Server 'github' environment variable 'TOKEN' must be a non-empty string."
+    ]
