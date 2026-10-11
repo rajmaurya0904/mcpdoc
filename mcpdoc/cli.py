@@ -6,7 +6,12 @@ import argparse
 import json
 
 from . import __version__
-from .mcp_linter import add_fix_comments, get_missing_binaries, load_config
+from .mcp_linter import (
+    add_fix_comments,
+    fix_duplicate_servers,
+    get_missing_binaries,
+    load_config,
+)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -54,11 +59,13 @@ def main(argv: list[str] | None = None) -> int:
     config = load_config(args.config)
     missing = get_missing_binaries(config)
 
+    renamed: list[tuple[str, str]] = []
     if args.fix and not args.check:
+        renamed = fix_duplicate_servers(args.config)
         if missing:
             add_fix_comments(args.config, missing)
 
-    fix_applied = args.fix and not args.check and bool(missing)
+    fix_applied = args.fix and not args.check and bool(missing or renamed)
     lint_passed = not missing
 
     if args.json:
