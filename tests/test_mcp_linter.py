@@ -2,7 +2,7 @@
 
 import json
 
-from auto_mcp_server_config_linter_and_doctor.mcp_linter import (
+from mcpdoc.mcp_linter import (
     MCPConfig,
     check_bad_env_vars,
     check_duplicate_servers,
@@ -186,7 +186,7 @@ def test_run_checks_with_multiple_issues(tmp_path) -> None:
 
 def test_add_fix_comments_adds_placeholder_lines(tmp_path) -> None:
     """Test that add_fix_comments adds the expected placeholder comments."""
-    from auto_mcp_server_config_linter_and_doctor.mcp_linter import add_fix_comments
+    from mcpdoc.mcp_linter import add_fix_comments
 
     # Create a config file with some initial content
     config_file = tmp_path / ".mcp.json"

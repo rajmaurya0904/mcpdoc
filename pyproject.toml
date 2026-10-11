@@ -7,7 +7,7 @@ license = { text = "MIT" }
 dependencies = []
 
 [project.scripts]
-mcp-lint = "auto_mcp_server_config_linter_and_doctor.cli:main"
+mcp-lint = "mcpdoc.cli:main"
 
 [project.optional-dependencies]
 dev = [
@@ -20,7 +20,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
-include = ["auto_mcp_server_config_linter_and_doctor*"]
+include = ["mcpdoc*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

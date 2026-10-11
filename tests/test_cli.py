@@ -4,7 +4,7 @@ import json
 import sys
 from pathlib import Path
 
-from auto_mcp_server_config_linter_and_doctor import cli
+from mcpdoc import cli
 
 
 def test_cli_import() -> None:
