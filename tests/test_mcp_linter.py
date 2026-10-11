@@ -168,9 +168,17 @@ def test_check_bad_env_vars_clean() -> None:
     assert check_bad_env_vars(config) == []
 
 
-def test_check_unreachable_endpoints_always_empty() -> None:
+def test_check_unreachable_endpoints_empty_config() -> None:
     config = MCPConfig()
     assert check_unreachable_endpoints(config) == []
+
+
+def test_check_unreachable_endpoints_reports_message(requests_mock) -> None:
+    requests_mock.head("https://bad.example/mcp", exc=requests.exceptions.ConnectTimeout)
+    config = MCPConfig(servers={"bad": {"url": "https://bad.example/mcp"}})
+    errors = check_unreachable_endpoints(config)
+    assert len(errors) == 1
+    assert "https://bad.example/mcp" in errors[0]
 
 
 def test_run_checks_with_clean_config(tmp_path) -> None:
