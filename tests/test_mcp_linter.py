@@ -45,10 +45,25 @@ def test_mcp_config_repr_shows_all_fields() -> None:
     assert "node" in r
 
 
-def test_check_duplicate_servers_always_empty() -> None:
-    # Since servers is a dict, duplicate keys are impossible.
+def test_check_duplicate_servers_clean_config() -> None:
     config = MCPConfig(servers={"a": {}, "b": {}})
     assert check_duplicate_servers(config) == []
+
+
+def test_check_duplicate_servers_reports_repeated_names(tmp_path) -> None:
+    # JSON objects cannot hold two equal keys, so the duplicate is written
+    # as a repeated key in the raw file, which json would otherwise drop.
+    config_file = tmp_path / ".mcp.json"
+    config_file.write_text(
+        '{"servers": {"fs": {"command": "node"}, "fs": {"command": "python"}},'
+        ' "binaries": ["node", "python"]}',
+        encoding="utf-8",
+    )
+
+    result = run_checks(str(config_file))
+
+    assert len(result["duplicate_servers"]) == 1
+    assert "Server 'fs' is defined more than once." in result["duplicate_servers"][0]
 
 
 def test_check_missing_binaries() -> None:
