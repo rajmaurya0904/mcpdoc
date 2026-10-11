@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from dataclasses import dataclass, field
 from pathlib import Path
+
+_ENV_NAME_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
 
 def get_missing_binaries(config: MCPConfig) -> set[str]:
@@ -170,6 +173,24 @@ def check_bad_env_vars(config: MCPConfig) -> list[str]:
                 f"Environment variable '{key}' must be a non-empty string."
             )
     return errors
+
+
+def find_invalid_env_vars(config: MCPConfig) -> list[str]:
+    """Return the keys of env vars that are malformed.
+
+    A key is returned when its name is not a valid environment variable name, or
+    its value is not a string, is empty or whitespace, or contains a NUL character.
+    """
+    invalid: list[str] = []
+    for key, value in config.env_vars.items():
+        if (
+            not _ENV_NAME_PATTERN.fullmatch(key)
+            or not isinstance(value, str)
+            or not value.strip()
+            or "\x00" in value
+        ):
+            invalid.append(key)
+    return invalid
 
 
 def check_unreachable_endpoints(config: MCPConfig) -> list[str]:
