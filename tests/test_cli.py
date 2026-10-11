@@ -61,6 +61,16 @@ def test_cli_colors_problems_with_ansi_codes(tmp_path: Path, capsys) -> None:
     assert "error: Server 'missing' specifies binary 'python'" in out
 
 
+def test_cli_malformed_config_reports_error(tmp_path: Path, capsys) -> None:
+    config_file = tmp_path / ".mcp.json"
+    config_file.write_text("{not json", encoding="utf-8")
+
+    exit_code = cli.main(["--config", str(config_file)])
+
+    assert exit_code == 2
+    assert "not valid JSON" in capsys.readouterr().err
+
+
 def test_cli_python_m_help_shows_options() -> None:
     import subprocess
 
