@@ -24,7 +24,7 @@ Requires Python >=3.11
 Lint a config file (defaults to `.mcp.json` in the current directory):
 
 ```bash
-mcp-lint --config .mcp.json
+mcpdoc --config .mcp.json
 ```
 
 Options:
@@ -47,7 +47,7 @@ error: Environment variable 'API_KEY' must be a non-empty string.
 Fix only the duplicate server names:
 
 ```bash
-mcp-lint --config .mcp.json --fix
+mcpdoc --config .mcp.json --fix
 ```
 
 ```text
@@ -57,7 +57,7 @@ fixed: renamed duplicate server 'filesystem' to 'filesystem-2'
 Machine-readable output for scripts:
 
 ```bash
-mcp-lint --config .mcp.json --json
+mcpdoc --config .mcp.json --json
 ```
 
 ```json

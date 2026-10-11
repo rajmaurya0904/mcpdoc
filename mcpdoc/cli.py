@@ -46,7 +46,7 @@ def _print_problems(errors: list[str], warnings: list[str]) -> None:
 def build_parser() -> argparse.ArgumentParser:
     """Build the argument parser for the CLI."""
     parser = argparse.ArgumentParser(
-        prog="mcp-linter",
+        prog="mcpdoc",
         description="Lint MCP server configuration files and suggest fixes.",
     )
     parser.add_argument(

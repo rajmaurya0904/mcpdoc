@@ -23,7 +23,7 @@ def test_cli_main_runs(monkeypatch) -> None:
     exit_code = cli.main(["--help"])
     assert exit_code == 0
     # The help text should contain the program name
-    assert any("mcp-linter" in line for line in out)
+    assert any("mcpdoc" in line for line in out)
 
 
 def test_cli_json_output_parses(tmp_path: Path, capsys) -> None:
