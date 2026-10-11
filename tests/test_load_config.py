@@ -51,3 +51,57 @@ def test_load_config_empty_file(tmp_path: pathlib.Path) -> None:
     assert config.servers == {}
     assert config.env_vars == {}
     assert config.binaries == []
+
+
+REALISTIC_MCP_JSON = """{
+  "mcpServers": {
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/home/raj/projects"]
+    },
+    "github": {
+      "command": "docker",
+      "args": ["run", "-i", "--rm", "ghcr.io/github/github-mcp-server"],
+      "env": {"GITHUB_PERSONAL_ACCESS_TOKEN": "ghp_example"}
+    },
+    "sentry": {
+      "url": "https://mcp.sentry.dev/mcp"
+    }
+  }
+}
+"""
+
+
+def test_load_config_reads_mcp_servers_key(tmp_path: pathlib.Path) -> None:
+    config_file = tmp_path / ".mcp.json"
+    config_file.write_text(REALISTIC_MCP_JSON, encoding="utf-8")
+
+    config = load_config(str(config_file))
+
+    assert list(config.servers) == ["filesystem", "github", "sentry"]
+    assert config.servers["filesystem"]["command"] == "npx"
+    assert config.servers["sentry"]["url"] == "https://mcp.sentry.dev/mcp"
+
+
+def test_load_config_still_accepts_servers_key(tmp_path: pathlib.Path) -> None:
+    config_file = tmp_path / ".mcp.json"
+    config_file.write_text(
+        json.dumps({"servers": {"legacy": {"command": "node"}}}), encoding="utf-8"
+    )
+
+    assert list(load_config(str(config_file)).servers) == ["legacy"]
+
+
+def test_load_config_prefers_mcp_servers_over_servers(tmp_path: pathlib.Path) -> None:
+    config_file = tmp_path / ".mcp.json"
+    config_file.write_text(
+        json.dumps(
+            {
+                "mcpServers": {"real": {"command": "node"}},
+                "servers": {"legacy": {"command": "node"}},
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert list(load_config(str(config_file)).servers) == ["real"]

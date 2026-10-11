@@ -12,6 +12,18 @@ import requests
 
 _ENV_NAME_PATTERN = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
+# Real MCP config files (.mcp.json, claude_desktop_config.json, ~/.claude.json) all use
+# "mcpServers". "servers" is accepted as a fallback for hand-written configs.
+SERVER_KEYS = ("mcpServers", "servers")
+
+
+def _server_key(data: dict) -> str:
+    """Return the key holding the server table in ``data``, preferring ``mcpServers``."""
+    for key in SERVER_KEYS:
+        if key in data:
+            return key
+    return SERVER_KEYS[0]
+
 
 def get_missing_binaries(config: MCPConfig) -> set[str]:
     """Return the set of binaries that are referenced by servers but not in the binaries list."""
@@ -33,7 +45,8 @@ def fix_duplicate_servers(path: str) -> list[tuple[str, str]]:
     """
     text = Path(path).read_text(encoding="utf-8")
     data = json.loads(text, object_pairs_hook=_object_hook)
-    servers = data.get("servers")
+    servers_key = _server_key(data)
+    servers = data.get(servers_key)
     if not isinstance(servers, _JSONObject) or not servers.duplicate_keys:
         return []
 
@@ -54,7 +67,7 @@ def fix_duplicate_servers(path: str) -> list[tuple[str, str]]:
         renamed.append((key, new_key))
         new_pairs.append((new_key, value))
 
-    data["servers"] = dict(new_pairs)
+    data[servers_key] = dict(new_pairs)
     Path(path).write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
     return renamed
 
@@ -153,7 +166,7 @@ def load_config(path: str = ".mcp.json") -> MCPConfig:
                 f"{path} is not valid JSON: {e.msg} (line {e.lineno}, column {e.colno})."
             ) from e
     # Extract known keys, defaulting to empty structures if missing.
-    servers = data.get("servers", {})
+    servers = data.get(_server_key(data), {})
     env_vars = data.get("env_vars", {})
     binaries = data.get("binaries", [])
     duplicate_servers = list(getattr(servers, "duplicate_keys", ()))
