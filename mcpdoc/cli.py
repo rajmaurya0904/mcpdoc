@@ -5,13 +5,37 @@ from __future__ import annotations
 import argparse
 import json
 
+import colorama
+from colorama import Fore, Style
+
 from . import __version__
 from .mcp_linter import (
+    MCPConfig,
     add_fix_comments,
+    check_bad_env_vars,
+    check_duplicate_servers,
+    check_missing_binaries,
+    check_unreachable_endpoints,
     fix_duplicate_servers,
     get_missing_binaries,
     load_config,
 )
+
+
+def _print_problems(config: MCPConfig) -> None:
+    """Print each problem found in the config: errors in red, warnings in yellow."""
+    errors = (
+        check_duplicate_servers(config)
+        + check_missing_binaries(config)
+        + check_bad_env_vars(config)
+    )
+    warnings = check_unreachable_endpoints(config)
+    if not errors and not warnings:
+        print("No problems found.")
+    for message in errors:
+        print(f"{Fore.RED}error: {message}{Style.RESET_ALL}")
+    for message in warnings:
+        print(f"{Fore.YELLOW}warning: {message}{Style.RESET_ALL}")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -50,6 +74,7 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     """Run the CLI. Returns a process exit code."""
+    colorama.just_fix_windows_console()
     parser = build_parser()
     try:
         args = parser.parse_args(argv)
@@ -78,6 +103,12 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(result))
     else:
         print(f"Linting {args.config}")
+        _print_problems(config)
+        for old, new in renamed:
+            print(
+                f"{Fore.YELLOW}fixed: renamed duplicate server "
+                f"'{old}' to '{new}'{Style.RESET_ALL}"
+            )
     return 0
 
 
