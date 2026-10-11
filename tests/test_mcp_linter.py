@@ -121,6 +121,24 @@ def test_fix_duplicate_servers_renames_repeated_names(tmp_path) -> None:
     assert run_checks(str(config_file))["duplicate_servers"] == []
 
 
+def test_fix_duplicate_servers_keeps_valid_json_structure(tmp_path) -> None:
+    config_file = tmp_path / ".mcp.json"
+    config_file.write_text(
+        '{"servers": {"fs": {"command": "node"}, "fs": {"command": "python"}},'
+        ' "binaries": ["node", "python"], "env_vars": {"KEY": "value"}}',
+        encoding="utf-8",
+    )
+
+    fix_duplicate_servers(str(config_file))
+
+    fixed = json.loads(config_file.read_text(encoding="utf-8"))
+    assert fixed == {
+        "servers": {"fs": {"command": "node"}, "fs-2": {"command": "python"}},
+        "binaries": ["node", "python"],
+        "env_vars": {"KEY": "value"},
+    }
+
+
 def test_find_unreachable_endpoints_reports_only_failures(requests_mock) -> None:
     requests_mock.head("https://ok.example/mcp", status_code=200)
     # An error status still means the server answered, so it is reachable.
