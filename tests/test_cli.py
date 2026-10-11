@@ -47,6 +47,20 @@ def test_cli_json_output_parses(tmp_path: Path, capsys) -> None:
     assert result["fix_applied"] is False
 
 
+def test_cli_colors_problems_with_ansi_codes(tmp_path: Path, capsys) -> None:
+    config_file = tmp_path / ".mcp.json"
+    config_file.write_text(
+        json.dumps({"servers": {"missing": {"command": "python"}}, "binaries": ["node"]}),
+        encoding="utf-8",
+    )
+
+    cli.main(["--config", str(config_file)])
+
+    out = capsys.readouterr().out
+    assert "\x1b[31m" in out  # red for errors
+    assert "error: Server 'missing' specifies binary 'python'" in out
+
+
 def test_cli_python_m_help_shows_options() -> None:
     import subprocess
 
