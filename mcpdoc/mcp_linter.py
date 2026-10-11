@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -25,13 +26,44 @@ def _server_key(data: dict) -> str:
     return SERVER_KEYS[0]
 
 
-def get_missing_binaries(config: MCPConfig) -> set[str]:
-    """Return the set of binaries that are referenced by servers but not in the binaries list."""
-    binary_set = set(config.binaries)
-    missing: set[str] = set()
-    for _server_name, server_config in config.servers.items():
+def command_exists(command: str) -> bool:
+    """Return True when ``command`` can actually be run on this machine.
+
+    A bare name such as ``npx`` is looked up on PATH with :func:`shutil.which`; a
+    path such as ``/usr/local/bin/node`` or ``C:\tools\node.exe`` has to exist as a file.
+    """
+    separators = [os.sep] + ([os.altsep] if os.altsep else [])
+    if os.path.isabs(command) or any(sep in command for sep in separators):
+        return os.path.isfile(command)
+    return shutil.which(command) is not None
+
+
+def _server_commands(config: MCPConfig) -> list[tuple[str, str]]:
+    """Return the ``(server_name, command)`` pairs declared in the config."""
+    pairs: list[tuple[str, str]] = []
+    for server_name, server_config in config.servers.items():
+        if not isinstance(server_config, dict):
+            continue
         command = server_config.get("command")
-        if command and command not in binary_set:
+        if isinstance(command, str) and command:
+            pairs.append((server_name, command))
+    return pairs
+
+
+def get_missing_binaries(config: MCPConfig) -> set[str]:
+    """Return the commands referenced by servers that cannot be run.
+
+    When the config declares a non-empty ``binaries`` allowlist, a command counts as
+    missing if it is not on that list. Otherwise the command is resolved for real with
+    :func:`command_exists`.
+    """
+    allowlist = set(config.binaries)
+    missing: set[str] = set()
+    for _server_name, command in _server_commands(config):
+        if allowlist:
+            if command not in allowlist:
+                missing.add(command)
+        elif not command_exists(command):
             missing.add(command)
     return missing
 
@@ -200,19 +232,25 @@ def check_duplicate_servers(config: MCPConfig) -> list[str]:
 
 
 def check_missing_binaries(config: MCPConfig) -> list[str]:
-    """Check that each server's command is listed in the binaries list.
+    """Check that each server's command can actually be run on this machine.
+
+    A config that declares a non-empty ``binaries`` allowlist is checked against that
+    list instead, which is how older hand-written configs behaved.
 
     Returns a list of error messages, empty if none.
     """
     errors: list[str] = []
-    binary_set = set(config.binaries)
-    for server_name, server_config in config.servers.items():
-        command = server_config.get("command")
-        if command and command not in binary_set:
-            errors.append(
-                f"Server '{server_name}' specifies binary '{command}' "
-                f"which is not in the binaries list."
-            )
+    allowlist = set(config.binaries)
+    for server_name, command in _server_commands(config):
+        if allowlist:
+            if command not in allowlist:
+                errors.append(
+                    f"Server '{server_name}' specifies binary '{command}' "
+                    f"which is not in the binaries list."
+                )
+        elif not command_exists(command):
+            where = "does not exist" if os.path.isabs(command) else "was not found on PATH"
+            errors.append(f"Server '{server_name}' command '{command}' {where}.")
     return errors
 
 

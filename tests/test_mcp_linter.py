@@ -2,6 +2,8 @@
 
 import json
 import os
+import shutil
+import sys
 
 import requests
 
@@ -15,6 +17,7 @@ from mcpdoc.mcp_linter import (
     find_missing_binary_paths,
     find_unreachable_endpoints,
     fix_duplicate_servers,
+    get_missing_binaries,
     run_checks,
 )
 
@@ -321,3 +324,54 @@ def test_add_fix_comments_adds_placeholder_lines(tmp_path) -> None:
     # The function ensures a newline before appending, so we expect each comment on its own line.
     # We can also check that the file ends with a newline (since each comment adds one).
     assert content.endswith('\n')
+
+def test_check_missing_binaries_resolves_bare_command_on_path(monkeypatch) -> None:
+    monkeypatch.setattr(shutil, "which", lambda cmd: "/usr/bin/npx" if cmd == "npx" else None)
+    config = MCPConfig(servers={"filesystem": {"command": "npx"}})
+
+    assert check_missing_binaries(config) == []
+
+
+def test_check_missing_binaries_reports_command_not_on_path(monkeypatch) -> None:
+    monkeypatch.setattr(shutil, "which", lambda cmd: None)
+    config = MCPConfig(servers={"git": {"command": "git-mcp"}})
+
+    errors = check_missing_binaries(config)
+
+    assert errors == ["Server 'git' command 'git-mcp' was not found on PATH."]
+
+
+def test_check_missing_binaries_accepts_existing_absolute_path() -> None:
+    config = MCPConfig(servers={"py": {"command": sys.executable}})
+
+    assert check_missing_binaries(config) == []
+
+
+def test_check_missing_binaries_reports_absent_absolute_path(tmp_path) -> None:
+    absent = str(tmp_path / "bin" / "node")
+    config = MCPConfig(servers={"node": {"command": absent}})
+
+    errors = check_missing_binaries(config)
+
+    assert errors == [f"Server 'node' command '{absent}' does not exist."]
+
+
+def test_get_missing_binaries_resolves_commands(monkeypatch) -> None:
+    monkeypatch.setattr(shutil, "which", lambda cmd: "/usr/bin/node" if cmd == "node" else None)
+    config = MCPConfig(
+        servers={"ok": {"command": "node"}, "bad": {"command": "nope-mcp"}},
+    )
+
+    assert get_missing_binaries(config) == {"nope-mcp"}
+
+
+def test_binaries_allowlist_still_wins_when_present(monkeypatch) -> None:
+    """A config that declares a binaries list keeps the old allowlist behaviour."""
+    monkeypatch.setattr(shutil, "which", lambda cmd: "/usr/bin/" + cmd)
+    config = MCPConfig(servers={"ok": {"command": "node"}}, binaries=["python"])
+
+    errors = check_missing_binaries(config)
+
+    assert len(errors) == 1
+    assert "not in the binaries list" in errors[0]
+    assert get_missing_binaries(config) == {"node"}
