@@ -26,6 +26,22 @@ def test_cli_main_runs(monkeypatch) -> None:
     assert any("mcp-linter" in line for line in out)
 
 
+def test_cli_python_m_help_shows_options() -> None:
+    import subprocess
+
+    project_root = Path(__file__).parent.parent
+    result = subprocess.run(
+        [sys.executable, "-m", "mcpdoc.cli", "--help"],
+        cwd=project_root,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    assert result.returncode == 0
+    assert "--config" in result.stdout
+    assert "--check" in result.stdout
+
+
 def test_cli_fix_flag() -> None:
     # Test that the --fix flag is parsed and sets the attribute
     parser = cli.build_parser()
