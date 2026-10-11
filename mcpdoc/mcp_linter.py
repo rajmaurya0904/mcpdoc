@@ -83,6 +83,10 @@ def add_fix_comments(path: str, missing_binaries: set[str]) -> None:
         f.write(content)
 
 
+class ConfigParseError(Exception):
+    """Raised when a configuration file exists but is not valid JSON."""
+
+
 class _JSONObject(dict):
     """A dict parsed from a JSON object that remembers which keys were repeated."""
 
@@ -135,12 +139,19 @@ def load_config(path: str = ".mcp.json") -> MCPConfig:
     ------
     FileNotFoundError
         If the configuration file does not exist.
+    ConfigParseError
+        If the configuration file is not valid JSON.
     """
     p = Path(path)
     if not p.is_file():
         raise FileNotFoundError(f"Configuration file not found: {path}")
     with p.open("r", encoding="utf-8") as f:
-        data = json.load(f, object_pairs_hook=_object_hook)
+        try:
+            data = json.load(f, object_pairs_hook=_object_hook)
+        except json.JSONDecodeError as e:
+            raise ConfigParseError(
+                f"{path} is not valid JSON: {e.msg} (line {e.lineno}, column {e.colno})."
+            ) from e
     # Extract known keys, defaulting to empty structures if missing.
     servers = data.get("servers", {})
     env_vars = data.get("env_vars", {})
