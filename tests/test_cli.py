@@ -26,6 +26,27 @@ def test_cli_main_runs(monkeypatch) -> None:
     assert any("mcp-linter" in line for line in out)
 
 
+def test_cli_json_output_parses(tmp_path: Path, capsys) -> None:
+    config_file = tmp_path / ".mcp.json"
+    config_file.write_text(
+        json.dumps(
+            {
+                "servers": {"ok": {"command": "node"}, "missing": {"command": "python"}},
+                "binaries": ["node"],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    exit_code = cli.main(["--json", "--config", str(config_file)])
+
+    assert exit_code == 0
+    result = json.loads(capsys.readouterr().out)
+    assert result["missing_binaries"] == ["python"]
+    assert result["lint_passed"] is False
+    assert result["fix_applied"] is False
+
+
 def test_cli_python_m_help_shows_options() -> None:
     import subprocess
 
