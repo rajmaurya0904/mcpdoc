@@ -1,83 +1,95 @@
-# MCP server config linter and doctor
+# mcpdoc
 
-Checks .mcp.json and claude_desktop_config files for missing binaries, bad env vars, duplicate server names and unreachable endpoints, then shows how to fix each one. For anyone whose MCP servers silently fail to load.
+**Lints MCP server config files (`.mcp.json`, `claude_desktop_config.json`) and tells you exactly why a server will not start.**
 
-## Validation Rules
+When an MCP server fails to load, the client usually says nothing useful: the tools
+are just absent. The real cause is almost always boring -- the command is not on
+your PATH, a token was left as `""`, the same server name appears twice so one
+entry silently wins, or an HTTP endpoint is dead. `mcpdoc` reads the config the
+same way the client does and names the broken line.
 
-This tool performs four validation checks on your MCP server configuration:
+## Real terminal output
 
-1. **Duplicate server detection**: Ensures that each server has a unique name in the configuration.
-2. **Binary existence**: Checks that the binary specified for each server exists in the system PATH or is an absolute path.
-3. **Env var validation**: Validates that environment variables are defined and have appropriate values (if required).
-4. **Endpoint reachability**: For servers that specify an endpoint (e.g., HTTP), checks that the endpoint is reachable.
+```text
+$ mcpdoc --config .mcp.json
+Linting .mcp.json
+error: Server 'filesystem' is defined more than once.
+error: Server 'github' command 'github-mcp-server' was not found on PATH.
+error: Server 'github' environment variable 'GITHUB_PERSONAL_ACCESS_TOKEN' must be a non-empty string.
+warning: Endpoint 'http://127.0.0.1:9/mcp' did not respond in time.
 
-## Installation
-
-```bash
-pip install -e ".[dev]"
+$ echo $?
+1
 ```
 
-Requires Python >=3.11
+Errors print in red, warnings in yellow. Any error means exit code 1, so it drops
+straight into CI.
+
+## Install
+
+Not on PyPI. Clone it and install from the checkout:
+
+```bash
+pip install -e .
+```
+
+Needs Python 3.11 or newer.
 
 ## Usage
 
-Lint a config file (defaults to `.mcp.json` in the current directory):
-
 ```bash
-mcpdoc --config .mcp.json
+mcpdoc                                  # lint ./.mcp.json
+mcpdoc --config ~/.claude.json          # lint a config somewhere else
+mcpdoc --config .mcp.json --json        # one JSON object, for scripts
+mcpdoc --config .mcp.json --fix         # rename duplicate server names in place
 ```
 
-Options:
-
-- `--config PATH`: the config file to check (default `.mcp.json`).
-- `--check`: report only, do not change the file.
-- `--fix`: rename duplicate server names (`filesystem` becomes `filesystem-2`) and rewrite the file. If binaries are missing, it also appends `# TODO: install <binary>` lines, which makes the file invalid JSON.
-- `--json`: print one JSON object instead of text.
-- `--version`: print the version and exit.
-
-Text output prints errors in red and warnings in yellow. For a config with a duplicate server, a missing binary and an empty env var:
+`--fix` rewrites the file as valid JSON and only changes what it can change
+safely, which today means de-duplicating server names. Everything else is
+reported, not guessed at:
 
 ```text
+$ mcpdoc --config .mcp.json --fix
 Linting .mcp.json
-error: Server 'filesystem' is defined more than once.
-error: Server 'git' specifies binary 'git-mcp' which is not in the binaries list.
-error: Environment variable 'API_KEY' must be a non-empty string.
-```
-
-Fix only the duplicate server names:
-
-```bash
-mcpdoc --config .mcp.json --fix
-```
-
-```text
+error: Server 'github' command 'github-mcp-server' was not found on PATH.
+error: Server 'github' environment variable 'GITHUB_PERSONAL_ACCESS_TOKEN' must be a non-empty string.
+warning: Endpoint 'http://127.0.0.1:9/mcp' did not respond in time.
 fixed: renamed duplicate server 'filesystem' to 'filesystem-2'
+hint: install 'github-mcp-server' or point the command at a real path
 ```
 
-Machine-readable output for scripts:
+`--check` reports without touching the file, and `--version` prints the version.
+
+## How it works
+
+The config is parsed with a JSON hook that keeps repeated keys, so a duplicated
+server name cannot vanish on the way in. Servers are read from `mcpServers`,
+falling back to `servers` for hand-written files.
+
+| Check | What it does | Severity |
+| --- | --- | --- |
+| Duplicate servers | Server names that appear more than once in the raw JSON | error |
+| Missing binaries | `shutil.which()` for a bare command, `os.path.isfile()` for a path | error |
+| Bad env vars | Non-string, empty or whitespace values in `env_vars` and in each server's `env` | error |
+| Unreachable endpoints | One HEAD request per `url`, 3s timeout; any HTTP status counts as alive | warning |
+
+If a config declares its own `binaries` allowlist, commands are checked against
+that list instead of against the real system.
+
+## Limitations
+
+- It never starts a server, so a command that exists but crashes on launch looks fine.
+- It does not validate `args`, transport fields, or anything MCP-protocol specific.
+- Env values are only checked for being non-empty strings; a wrong token passes.
+- `--fix` only de-duplicates names. Missing binaries and bad env values are yours to fix.
+- The endpoint check is a single HEAD request, so a slow server on a bad network can be reported as unreachable.
+
+## Development
 
 ```bash
-mcpdoc --config .mcp.json --json
+pip install -e ".[dev]"
+pytest -q
+ruff check .
 ```
-
-```json
-{"config_file": ".mcp.json", "missing_binaries": ["git-mcp"], "fix_applied": false, "lint_passed": false}
-```
-
-A missing or malformed config file is reported on stderr with exit code 2.
-
-## Example
-
-TODO.
-
-## FAQ
-
-**What if a binary is optional?**
-If a binary is optional, you can mark it as such in the configuration by setting `"optional": true` for that server. The linter will skip the binary existence check for optional servers.
-
-**How to ignore a server?**
-To ignore a server during validation, add `"ignore": true` to the server's configuration. The linter will skip all checks for that server.
-
-## License
 
 MIT -- see [LICENSE](LICENSE).
