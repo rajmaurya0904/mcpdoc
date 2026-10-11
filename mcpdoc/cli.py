@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 
 import colorama
 from colorama import Fore, Style
 
 from . import __version__
 from .mcp_linter import (
+    ConfigParseError,
     MCPConfig,
     add_fix_comments,
     check_bad_env_vars,
@@ -81,7 +83,11 @@ def main(argv: list[str] | None = None) -> int:
     except SystemExit as e:
         # argparse exits on --help; return the exit code instead of raising
         return e.code
-    config = load_config(args.config)
+    try:
+        config = load_config(args.config)
+    except (FileNotFoundError, ConfigParseError) as e:
+        print(f"{Fore.RED}error: {e}{Style.RESET_ALL}", file=sys.stderr)
+        return 2
     missing = get_missing_binaries(config)
 
     renamed: list[tuple[str, str]] = []
