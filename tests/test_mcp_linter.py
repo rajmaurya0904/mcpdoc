@@ -14,6 +14,7 @@ from mcpdoc.mcp_linter import (
     find_invalid_env_vars,
     find_missing_binary_paths,
     find_unreachable_endpoints,
+    fix_duplicate_servers,
     run_checks,
 )
 
@@ -101,6 +102,23 @@ def test_find_missing_binary_paths_reports_missing(monkeypatch) -> None:
     monkeypatch.setattr(os.path, "isfile", lambda p: p in present)
     config = MCPConfig(binaries=["/usr/bin/node", "/opt/missing/python"])
     assert find_missing_binary_paths(config) == ["/opt/missing/python"]
+
+
+def test_fix_duplicate_servers_renames_repeated_names(tmp_path) -> None:
+    config_file = tmp_path / ".mcp.json"
+    config_file.write_text(
+        '{"servers": {"fs": {"command": "node"}, "fs": {"command": "python"}},'
+        ' "binaries": ["node", "python"]}',
+        encoding="utf-8",
+    )
+
+    renamed = fix_duplicate_servers(str(config_file))
+
+    assert renamed == [("fs", "fs-2")]
+    fixed = json.loads(config_file.read_text(encoding="utf-8"))
+    assert list(fixed["servers"]) == ["fs", "fs-2"]
+    assert fixed["servers"]["fs-2"] == {"command": "python"}
+    assert run_checks(str(config_file))["duplicate_servers"] == []
 
 
 def test_find_unreachable_endpoints_reports_only_failures(requests_mock) -> None:
