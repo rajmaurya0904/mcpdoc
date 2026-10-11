@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Checks .mcp.json and claude_desktop_config files for missing binaries, bad env vars, duplicate server names and unreachable endpoints, then shows how to fix each one. For anyone whose MCP servers silently fail to load."
 requires-python = ">=3.11"
 license = { text = "MIT" }
-dependencies = ["requests>=2.31"]
+dependencies = ["requests>=2.31", "colorama>=0.4.6"]
 
 [project.scripts]
 mcp-lint = "mcpdoc.cli:main"
