@@ -5,7 +5,7 @@ import pathlib
 
 import pytest
 
-from mcpdoc.mcp_linter import MCPConfig, load_config
+from mcpdoc.mcp_linter import ConfigParseError, MCPConfig, load_config
 
 
 def test_load_config_returns_correct_data(tmp_path: pathlib.Path) -> None:
@@ -32,6 +32,14 @@ def test_load_config_missing_file_raises(tmp_path: pathlib.Path) -> None:
     missing = tmp_path / ".mcp.json"
     with pytest.raises(FileNotFoundError):
         load_config(str(missing))
+
+
+def test_load_config_malformed_json_raises_config_parse_error(tmp_path: pathlib.Path) -> None:
+    config_file = tmp_path / ".mcp.json"
+    config_file.write_text('{"servers": {"a": {"command": "node"}', encoding="utf-8")
+
+    with pytest.raises(ConfigParseError, match="not valid JSON"):
+        load_config(str(config_file))
 
 
 def test_load_config_empty_file(tmp_path: pathlib.Path) -> None:
