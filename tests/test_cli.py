@@ -142,8 +142,8 @@ def test_cli_version_output_matches_pyproject() -> None:
     finally:
         output = sys.stdout.getvalue()
         sys.stdout = old_stdout
-    # The output should be exactly: f"mcp-linter {version}\n"
-    expected = f"mcp-linter {version}\n"
+    # The output should be exactly: f"mcpdoc {version}\n"
+    expected = f"mcpdoc {version}\n"
     assert output == expected
 
 def test_cli_exits_zero_on_clean_config(tmp_path: Path) -> None:
