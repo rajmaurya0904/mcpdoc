@@ -24,6 +24,41 @@ def get_missing_binaries(config: MCPConfig) -> set[str]:
     return missing
 
 
+def fix_duplicate_servers(path: str) -> list[tuple[str, str]]:
+    """Rename repeated server names in the config file so every name is unique.
+
+    The second and later occurrences of a name get an incrementing suffix, such as
+    ``fs-2``, and the file is rewritten as JSON. Returns the ``(old, new)`` name pairs
+    that were changed, empty when the file had no duplicates.
+    """
+    text = Path(path).read_text(encoding="utf-8")
+    data = json.loads(text, object_pairs_hook=_object_hook)
+    servers = data.get("servers")
+    if not isinstance(servers, _JSONObject) or not servers.duplicate_keys:
+        return []
+
+    used = {key for key, _value in servers.pairs}
+    seen: set[str] = set()
+    renamed: list[tuple[str, str]] = []
+    new_pairs: list[tuple[str, object]] = []
+    for key, value in servers.pairs:
+        if key not in seen:
+            seen.add(key)
+            new_pairs.append((key, value))
+            continue
+        suffix = 2
+        while f"{key}-{suffix}" in used:
+            suffix += 1
+        new_key = f"{key}-{suffix}"
+        used.add(new_key)
+        renamed.append((key, new_key))
+        new_pairs.append((new_key, value))
+
+    data["servers"] = dict(new_pairs)
+    Path(path).write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    return renamed
+
+
 def add_fix_comments(path: str, missing_binaries: set[str]) -> None:
     """Add a comment line for each missing binary to the config file.
 
@@ -51,6 +86,7 @@ def add_fix_comments(path: str, missing_binaries: set[str]) -> None:
 class _JSONObject(dict):
     """A dict parsed from a JSON object that remembers which keys were repeated."""
 
+    pairs: tuple[tuple[str, object], ...] = ()
     duplicate_keys: tuple[str, ...] = ()
 
 
@@ -67,6 +103,7 @@ def _object_hook(pairs: list[tuple[str, object]]) -> _JSONObject:
         if key in seen and key not in duplicates:
             duplicates.append(key)
         seen.add(key)
+    obj.pairs = tuple(pairs)
     obj.duplicate_keys = tuple(duplicates)
     return obj
 
