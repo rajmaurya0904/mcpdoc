@@ -9,6 +9,7 @@ from mcpdoc.mcp_linter import (
     check_duplicate_servers,
     check_missing_binaries,
     check_unreachable_endpoints,
+    find_invalid_env_vars,
     find_missing_binary_paths,
     run_checks,
 )
@@ -121,6 +122,24 @@ def test_check_bad_env_vars() -> None:
     assert "Environment variable 'BAD'" in error_messages
     assert "Environment variable 'WHITESPACE'" in error_messages
     assert "Environment variable 'NOT_STRING'" in error_messages
+
+
+def test_find_invalid_env_vars_returns_bad_keys() -> None:
+    config = MCPConfig(
+        env_vars={
+            "GOOD": "value",
+            "EMPTY": "",
+            "BAD-NAME": "value",
+            "NUL_BYTE": "abc\x00def",
+            "NOT_STRING": 7,
+        }
+    )
+    assert find_invalid_env_vars(config) == ["EMPTY", "BAD-NAME", "NUL_BYTE", "NOT_STRING"]
+
+
+def test_find_invalid_env_vars_clean() -> None:
+    config = MCPConfig(env_vars={"KEY_1": "val1", "_PRIVATE": "val2"})
+    assert find_invalid_env_vars(config) == []
 
 
 def test_check_bad_env_vars_clean() -> None:
