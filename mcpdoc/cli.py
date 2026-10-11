@@ -13,7 +13,6 @@ from . import __version__
 from .mcp_linter import (
     ConfigParseError,
     MCPConfig,
-    add_fix_comments,
     check_bad_env_vars,
     check_duplicate_servers,
     check_missing_binaries,
@@ -63,7 +62,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--fix",
         action="store_true",
-        help="Attempt to automatically fix detected problems.",
+        help="Rewrite the config to fix what can be fixed safely (duplicate names).",
     )
     parser.add_argument(
         "--json",
@@ -96,9 +95,9 @@ def main(argv: list[str] | None = None) -> int:
 
     renamed: list[tuple[str, str]] = []
     if args.fix and not args.check:
+        # Only rewrite the file in ways that keep it valid JSON. A missing binary
+        # cannot be fixed from here, so it is reported instead.
         renamed = fix_duplicate_servers(args.config)
-        if missing:
-            add_fix_comments(args.config, missing)
 
     fix_applied = args.fix and not args.check and bool(renamed)
     if renamed:
@@ -124,6 +123,9 @@ def main(argv: list[str] | None = None) -> int:
                 f"{Fore.YELLOW}fixed: renamed duplicate server "
                 f"'{old_name}' to '{new_name}'{Style.RESET_ALL}"
             )
+        if args.fix and not args.check:
+            for binary in sorted(missing):
+                print(f"hint: install '{binary}' or point the command at a real path")
     return 1 if errors else 0
 
 

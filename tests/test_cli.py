@@ -98,34 +98,24 @@ def test_cli_fix_flag() -> None:
     assert args.fix is False
 
 
-def test_cli_fix_adds_todo_comments(tmp_path: Path) -> None:
-    # Create a temporary config file with a missing binary
-    config = {
-        "servers": {
-            "test_server": {
-                "command": "missing_binary"
-            }
-        },
-        "binaries": ["existing_binary"]
-    }
+def test_cli_fix_leaves_the_config_valid_json(tmp_path: Path, capsys) -> None:
     config_file = tmp_path / ".mcp.json"
-    config_file.write_text(json.dumps(config), encoding="utf-8")
+    config_file.write_text(
+        '{"mcpServers": {"fs": {"command": "node"}, "fs": {"command": "not-a-real-xyz"}}}',
+        encoding="utf-8",
+    )
 
-    # Run the CLI with --fix on the temporary config
-    # We need to change the current working directory to tmp_path for relative path to work
-    # Alternatively, we can pass the absolute path via --config
-    import os
-    old_cwd = os.getcwd()
-    os.chdir(tmp_path)
-    try:
-        exit_code = cli.main(["--fix", "--config", str(config_file)])
-        assert exit_code == 1
-    finally:
-        os.chdir(old_cwd)
+    exit_code = cli.main(["--fix", "--config", str(config_file)])
 
-    # Check that the file now contains the TODO comment
     content = config_file.read_text(encoding="utf-8")
-    assert "# TODO: install missing_binary" in content
+    assert "# TODO" not in content
+    # The whole point: the file still parses as JSON after --fix.
+    fixed = json.loads(content)
+    assert list(fixed["mcpServers"]) == ["fs", "fs-2"]
+    out = capsys.readouterr().out
+    assert "fixed: renamed duplicate server 'fs' to 'fs-2'" in out
+    assert "hint: install 'not-a-real-xyz'" in out
+    assert exit_code == 1
 
 
 def test_cli_version_output_matches_pyproject() -> None:

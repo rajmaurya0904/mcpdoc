@@ -104,30 +104,6 @@ def fix_duplicate_servers(path: str) -> list[tuple[str, str]]:
     return renamed
 
 
-def add_fix_comments(path: str, missing_binaries: set[str]) -> None:
-    """Add a comment line for each missing binary to the config file.
-
-    This function appends a line of the form '# TODO: install <binary>' for each
-    missing binary to the end of the file.
-
-    Parameters
-    ----------
-    path: str
-        Path to the configuration file.
-    missing_binaries: set[str]
-        A set of missing binary names.
-    """
-    with open(path, encoding='utf-8') as f:
-        content = f.read()
-    # Ensure we end with a newline before appending.
-    if not content.endswith('\n'):
-        content += '\n'
-    for binary in missing_binaries:
-        content += f'# TODO: install {binary}\n'
-    with open(path, 'w', encoding='utf-8') as f:
-        f.write(content)
-
-
 class ConfigParseError(Exception):
     """Raised when a configuration file exists but is not valid JSON."""
 
