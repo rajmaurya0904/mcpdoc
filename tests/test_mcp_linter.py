@@ -3,6 +3,8 @@
 import json
 import os
 
+import requests
+
 from mcpdoc.mcp_linter import (
     MCPConfig,
     check_bad_env_vars,
@@ -11,6 +13,7 @@ from mcpdoc.mcp_linter import (
     check_unreachable_endpoints,
     find_invalid_env_vars,
     find_missing_binary_paths,
+    find_unreachable_endpoints,
     run_checks,
 )
 
@@ -98,6 +101,24 @@ def test_find_missing_binary_paths_reports_missing(monkeypatch) -> None:
     monkeypatch.setattr(os.path, "isfile", lambda p: p in present)
     config = MCPConfig(binaries=["/usr/bin/node", "/opt/missing/python"])
     assert find_missing_binary_paths(config) == ["/opt/missing/python"]
+
+
+def test_find_unreachable_endpoints_reports_only_failures(requests_mock) -> None:
+    requests_mock.head("https://ok.example/mcp", status_code=200)
+    # An error status still means the server answered, so it is reachable.
+    requests_mock.head("https://method.example/mcp", status_code=405)
+    requests_mock.head(
+        "https://bad.example/mcp", exc=requests.exceptions.ConnectTimeout
+    )
+    config = MCPConfig(
+        servers={
+            "ok": {"url": "https://ok.example/mcp"},
+            "method": {"url": "https://method.example/mcp"},
+            "bad": {"url": "https://bad.example/mcp"},
+            "local": {"command": "node"},
+        }
+    )
+    assert find_unreachable_endpoints(config) == ["https://bad.example/mcp"]
 
 
 def test_find_missing_binary_paths_all_present(monkeypatch) -> None:
