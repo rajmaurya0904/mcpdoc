@@ -1,6 +1,7 @@
 """Tests for the MCPConfig data model and validation functions."""
 
 import json
+import os
 
 from mcpdoc.mcp_linter import (
     MCPConfig,
@@ -8,6 +9,7 @@ from mcpdoc.mcp_linter import (
     check_duplicate_servers,
     check_missing_binaries,
     check_unreachable_endpoints,
+    find_missing_binary_paths,
     run_checks,
 )
 
@@ -88,6 +90,19 @@ def test_check_missing_binaries_clean() -> None:
         binaries=["node", "python"],
     )
     assert check_missing_binaries(config) == []
+
+
+def test_find_missing_binary_paths_reports_missing(monkeypatch) -> None:
+    present = {"/usr/bin/node"}
+    monkeypatch.setattr(os.path, "isfile", lambda p: p in present)
+    config = MCPConfig(binaries=["/usr/bin/node", "/opt/missing/python"])
+    assert find_missing_binary_paths(config) == ["/opt/missing/python"]
+
+
+def test_find_missing_binary_paths_all_present(monkeypatch) -> None:
+    monkeypatch.setattr(os.path, "isfile", lambda p: True)
+    config = MCPConfig(binaries=["/usr/bin/node", "/usr/bin/python"])
+    assert find_missing_binary_paths(config) == []
 
 
 def test_check_bad_env_vars() -> None:
