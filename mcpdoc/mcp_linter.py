@@ -216,12 +216,14 @@ def find_unreachable_endpoints(config: MCPConfig, timeout: float = 3.0) -> list[
 
 
 def check_unreachable_endpoints(config: MCPConfig) -> list[str]:
-    """Check for unreachable endpoints.
+    """Check that each server endpoint answers a HEAD request.
 
-    This is a placeholder; endpoint information is not available in the current config.
-    Returns an empty list.
+    Returns a list of warning messages, empty if none.
     """
-    return []
+    return [
+        f"Endpoint '{url}' did not respond in time."
+        for url in find_unreachable_endpoints(config)
+    ]
 
 
 def run_checks(path: str = ".mcp.json") -> dict[str, list[str]]:
