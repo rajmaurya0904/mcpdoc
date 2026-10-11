@@ -24,14 +24,18 @@ from .mcp_linter import (
 )
 
 
-def _print_problems(config: MCPConfig) -> None:
-    """Print each problem found in the config: errors in red, warnings in yellow."""
+def _collect_problems(config: MCPConfig) -> tuple[list[str], list[str]]:
+    """Return the ``(errors, warnings)`` found in the config."""
     errors = (
         check_duplicate_servers(config)
         + check_missing_binaries(config)
         + check_bad_env_vars(config)
     )
-    warnings = check_unreachable_endpoints(config)
+    return errors, check_unreachable_endpoints(config)
+
+
+def _print_problems(errors: list[str], warnings: list[str]) -> None:
+    """Print each problem found in the config: errors in red, warnings in yellow."""
     if not errors and not warnings:
         print("No problems found.")
     for message in errors:
@@ -96,26 +100,31 @@ def main(argv: list[str] | None = None) -> int:
         if missing:
             add_fix_comments(args.config, missing)
 
-    fix_applied = args.fix and not args.check and bool(missing or renamed)
-    lint_passed = not missing
+    fix_applied = args.fix and not args.check and bool(renamed)
+    if renamed:
+        # The file was rewritten, so report problems against what it says now.
+        config = load_config(args.config)
+    errors, warnings = _collect_problems(config)
 
     if args.json:
         result = {
             "config_file": args.config,
-            "missing_binaries": sorted(list(missing)),
+            "missing_binaries": sorted(missing),
+            "errors": errors,
+            "warnings": warnings,
             "fix_applied": fix_applied,
-            "lint_passed": lint_passed,
+            "lint_passed": not errors,
         }
         print(json.dumps(result))
     else:
         print(f"Linting {args.config}")
-        _print_problems(config)
-        for old, new in renamed:
+        _print_problems(errors, warnings)
+        for old_name, new_name in renamed:
             print(
                 f"{Fore.YELLOW}fixed: renamed duplicate server "
-                f"'{old}' to '{new}'{Style.RESET_ALL}"
+                f"'{old_name}' to '{new_name}'{Style.RESET_ALL}"
             )
-    return 0
+    return 1 if errors else 0
 
 
 if __name__ == "__main__":

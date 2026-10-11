@@ -40,7 +40,8 @@ def test_cli_json_output_parses(tmp_path: Path, capsys) -> None:
 
     exit_code = cli.main(["--json", "--config", str(config_file)])
 
-    assert exit_code == 0
+    # A config with at least one error exits 1 so CI fails on it.
+    assert exit_code == 1
     result = json.loads(capsys.readouterr().out)
     assert result["missing_binaries"] == ["python"]
     assert result["lint_passed"] is False
@@ -118,7 +119,7 @@ def test_cli_fix_adds_todo_comments(tmp_path: Path) -> None:
     os.chdir(tmp_path)
     try:
         exit_code = cli.main(["--fix", "--config", str(config_file)])
-        assert exit_code == 0
+        assert exit_code == 1
     finally:
         os.chdir(old_cwd)
 
@@ -154,3 +155,33 @@ def test_cli_version_output_matches_pyproject() -> None:
     # The output should be exactly: f"mcp-linter {version}\n"
     expected = f"mcp-linter {version}\n"
     assert output == expected
+
+def test_cli_exits_zero_on_clean_config(tmp_path: Path) -> None:
+    config_file = tmp_path / ".mcp.json"
+    config_file.write_text(
+        json.dumps({"mcpServers": {"py": {"command": sys.executable}}}), encoding="utf-8"
+    )
+
+    assert cli.main(["--config", str(config_file)]) == 0
+
+
+def test_cli_exits_one_on_real_mcp_servers_config(tmp_path: Path, capsys) -> None:
+    config_file = tmp_path / ".mcp.json"
+    config_file.write_text(
+        json.dumps(
+            {
+                "mcpServers": {
+                    "a": {"command": "not-a-real-binary-xyz"},
+                    "b": {"command": sys.executable, "env": {"TOKEN": ""}},
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    exit_code = cli.main(["--config", str(config_file)])
+
+    out = capsys.readouterr().out
+    assert exit_code == 1
+    assert "command 'not-a-real-binary-xyz' was not found on PATH" in out
+    assert "environment variable 'TOKEN'" in out
