@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -147,6 +148,14 @@ def check_missing_binaries(config: MCPConfig) -> list[str]:
                 f"which is not in the binaries list."
             )
     return errors
+
+
+def find_missing_binary_paths(config: MCPConfig) -> list[str]:
+    """Return the binary paths listed in the config that do not exist as files.
+
+    An empty list means every listed binary was found on the filesystem.
+    """
+    return [path for path in config.binaries if not os.path.isfile(path)]
 
 
 def check_bad_env_vars(config: MCPConfig) -> list[str]:
